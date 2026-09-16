@@ -1,6 +1,6 @@
 {
   "name": "tgrep",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fast indexed repository search powered by Microsoft tgrep.",
   "author": {
     "name": "MiguelElGallo",

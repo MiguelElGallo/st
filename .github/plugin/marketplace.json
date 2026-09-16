@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "Install fast indexed repository search powered by Microsoft tgrep.",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "plugins": [
     {
       "name": "tgrep",
       "description": "Fast indexed repository search powered by Microsoft tgrep.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "source": "./plugins/tgrep"
     }
   ]

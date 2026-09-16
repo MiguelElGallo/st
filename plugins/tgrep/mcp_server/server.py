@@ -17,13 +17,14 @@ import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 SERVER_NAME = "tgrep"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.1.1"
 TGREP_VERSION = "1.0.8"
 PROTOCOL_VERSION = "2024-11-05"
 UPSTREAM_REPOSITORY = "microsoft/tgrep"
+MAX_REQUEST_BYTES = 1024 * 1024  # Includes the newline, when present.
 
 # GitHub's SHA-256 digest for each official v1.0.8 release asset. Keeping the
 # values in the reviewed plugin makes first-use installation deterministic even
@@ -234,7 +235,7 @@ def _plugin_data_dir() -> Path:
 def _download_file(url: str, destination: Path) -> None:
     """Download a release asset without shell interpolation."""
     request = urllib.request.Request(
-        url, headers={"User-Agent": "tgrep-agent-plugin/0.1.0"}
+        url, headers={"User-Agent": f"tgrep-agent-plugin/{SERVER_VERSION}"}
     )
     with (
         urllib.request.urlopen(request, timeout=90) as response,
@@ -297,7 +298,7 @@ def _install_tgrep() -> str:
     suffix = "zip" if archive_kind == "zip" else "tar.gz"
     archive_name = f"tgrep-{tag}-{target}.{suffix}"
     base_url = f"https://github.com/{UPSTREAM_REPOSITORY}/releases/download/{tag}"
-    install_dir = _plugin_data_dir() / "bin" / tag / target
+    install_dir = (_plugin_data_dir().expanduser() / "bin" / tag / target).resolve()
     installed_binary = install_dir / executable_name
     binary_digest_path = install_dir / f"{executable_name}.sha256"
     installed_license = install_dir / "LICENSE.microsoft-tgrep.txt"
@@ -337,7 +338,7 @@ def _install_tgrep() -> str:
 def _find_tgrep() -> str:
     """Prefer a user override, then the verified managed release, then PATH."""
     if override := os.environ.get("TGREP_BIN"):
-        candidate = Path(override).expanduser()
+        candidate = Path(override).expanduser().resolve()
         if not candidate.is_file():
             raise FileNotFoundError(f"TGREP_BIN is not a file: {candidate}")
         return str(candidate)
@@ -357,7 +358,7 @@ def _find_tgrep() -> str:
             ) from exc
 
     if found := shutil.which("tgrep"):
-        return found
+        return str(Path(found).resolve(strict=True))
     raise FileNotFoundError(
         "tgrep was not found and automatic installation is disabled. Install "
         "tgrep, or set TGREP_BIN to its executable path."
@@ -420,7 +421,9 @@ def _store_client_roots(result: Any) -> None:
         parsed = urlparse(item["uri"])
         if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
             continue
-        local_path = Path(urllib.request.url2pathname(unquote(parsed.path)))
+        # url2pathname already decodes escapes. A second pass turns literal
+        # percent-encoded directory names into traversal or path separators.
+        local_path = Path(urllib.request.url2pathname(parsed.path))
         try:
             resolved = local_path.resolve(strict=True)
         except OSError:
@@ -794,12 +797,20 @@ def _handle(request: Any) -> dict[str, Any] | None:
 
 def main() -> None:
     """Serve newline-delimited JSON-RPC on standard input and output."""
-    for raw_line in sys.stdin:
-        if not (raw_line := raw_line.strip()):
+    stream = sys.stdin.buffer
+    while raw_line := stream.readline(MAX_REQUEST_BYTES + 1):
+        if len(raw_line) > MAX_REQUEST_BYTES:
+            # Discard the rest of this frame in bounded chunks, then recover
+            # at the next newline without parsing a truncated request.
+            while raw_line and not raw_line.endswith(b"\n"):
+                raw_line = stream.readline(65536)
+            _send(_error_response(None, -32700, "Request exceeds 1 MiB wire limit"))
+            continue
+        if not raw_line.strip():
             continue
         try:
-            request = json.loads(raw_line)
-        except json.JSONDecodeError as exc:
+            request = json.loads(raw_line.decode("utf-8"))
+        except (ValueError, RecursionError) as exc:
             _send(_error_response(None, -32700, f"Parse error: {exc}"))
             continue
         try:

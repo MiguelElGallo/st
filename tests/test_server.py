@@ -12,6 +12,7 @@ import tarfile
 import tempfile
 import unittest
 import zipfile
+from contextlib import chdir
 from pathlib import Path
 from unittest import mock
 
@@ -160,7 +161,7 @@ class ManagedInstallTests(unittest.TestCase):
 
     def test_explicit_override_skips_managed_install(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            binary = Path(directory) / "tgrep"
+            binary = Path(directory).resolve() / "tgrep"
             binary.write_bytes(b"test")
             with (
                 mock.patch.dict(os.environ, {"TGREP_BIN": str(binary)}, clear=True),
@@ -168,6 +169,89 @@ class ManagedInstallTests(unittest.TestCase):
             ):
                 self.assertEqual(server._find_tgrep(), str(binary))
                 install.assert_not_called()
+
+    def test_relative_executable_selection_is_bound_before_workspace_cwd(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            trusted = root / "tools/tgrep"
+            trusted.parent.mkdir()
+            trusted.write_bytes(b"trusted")
+            workspace = root / "workspace"
+            impostor = workspace / "tools/tgrep"
+            impostor.parent.mkdir(parents=True)
+            impostor.write_bytes(b"untrusted")
+            for settings in (
+                {"TGREP_BIN": "./tools/tgrep"},
+                {"TGREP_AUTO_INSTALL": "0"},
+            ):
+                with (
+                    self.subTest(settings=settings),
+                    chdir(root),
+                    mock.patch.dict(
+                        os.environ,
+                        {**settings, "TGREP_WORKSPACE_ROOT": str(workspace)},
+                        clear=True,
+                    ),
+                    mock.patch.object(
+                        server.shutil, "which", return_value="tools/tgrep"
+                    ),
+                    mock.patch.object(server, "_run_process") as run,
+                ):
+                    self.assertEqual(server._find_tgrep(), str(trusted))
+                    for handler, arguments in (
+                        (server._run_search, {"pattern": "x"}),
+                        (server._run_index, {}),
+                        (server._run_status, {}),
+                    ):
+                        handler({"workspace_root": str(workspace), **arguments})
+                        self.assertEqual(run.call_args.args[0][0], str(trusted))
+                        self.assertEqual(run.call_args.kwargs["cwd"], workspace)
+
+    def test_relative_managed_cache_install_and_reuse_return_absolute_path(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            fixture = self._fixture_archive(root, "tar.gz", "tgrep", b"trusted")
+            digest = hashlib.sha256(fixture.read_bytes()).hexdigest()
+
+            def download(_url: str, destination: Path) -> None:
+                shutil.copyfile(fixture, destination)
+
+            with (
+                chdir(root),
+                mock.patch.dict(os.environ, {"PLUGIN_DATA": "cache"}, clear=True),
+                mock.patch.object(
+                    server,
+                    "_release_asset",
+                    return_value=("test-target", "tar.gz", "tgrep", digest),
+                ),
+                mock.patch.object(
+                    server, "_download_file", side_effect=download
+                ) as fetch,
+            ):
+                installed = Path(server._install_tgrep())
+                cached = Path(server._install_tgrep())
+            self.assertTrue(installed.is_absolute())
+            self.assertEqual(cached, installed)
+            self.assertEqual(installed.read_bytes(), b"trusted")
+            self.assertEqual(fetch.call_count, 1)
+
+    def test_symlink_executable_override_remains_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            trusted = root / "real-tgrep"
+            trusted.write_bytes(b"trusted")
+            alias = root / "tgrep-alias"
+            try:
+                alias.symlink_to(trusted)
+            except OSError:
+                self.skipTest("symlink creation is unavailable for this user")
+            with (
+                chdir(root),
+                mock.patch.dict(os.environ, {"TGREP_BIN": "tgrep-alias"}, clear=True),
+            ):
+                self.assertEqual(server._find_tgrep(), str(trusted))
 
     @unittest.skipUnless(
         os.environ.get("TGREP_LIVE_TEST") == "1",
@@ -345,6 +429,70 @@ class McpProtocolTests(unittest.TestCase):
     def tearDown(self) -> None:
         server._CLIENT_ROOTS.clear()
         vars(server)["_CLIENT_SUPPORTS_ROOTS"] = False
+
+    def test_file_roots_decode_once_and_cannot_authorize_parent(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.dict(os.environ, {}, clear=True),
+        ):
+            parent = Path(directory).resolve()
+            for index, name in enumerate(
+                ("%2e%2e", "%2E%2E", "%2f", "%5c", "%25", "a b", "räksmörgås")
+            ):
+                with self.subTest(name=name):
+                    root = parent / str(index) / name
+                    root.mkdir(parents=True)
+                    server._store_client_roots({"roots": [{"uri": root.as_uri()}]})
+                    self.assertEqual(server._CLIENT_ROOTS, [root])
+                    self.assertEqual(server._workspace_root(str(root)), root)
+                    with self.assertRaisesRegex(ValueError, "client root"):
+                        server._workspace_root(str(parent))
+                    with self.assertRaisesRegex(ValueError, "workspace root"):
+                        server._resolve_workspace_path("..", workspace_root=str(root))
+
+    def _stdio_responses(self, payload: bytes) -> list[dict]:
+        completed = subprocess.run(
+            [sys.executable, str(SERVER_PATH)],
+            input=payload,
+            capture_output=True,
+            timeout=10,
+            check=True,
+        )
+        self.assertEqual(completed.stderr, b"")
+        return [json.loads(line) for line in completed.stdout.splitlines()]
+
+    def test_stdio_rejects_oversized_frame_and_recovers(self) -> None:
+        limit = 1024 * 1024
+        oversized = b'{"padding":"' + b"x" * limit + b'"}\n'
+        ping = b'{"jsonrpc":"2.0","id":7,"method":"ping"}\n'
+        multibyte = b'{"padding":"' + "ä".encode() * (limit // 2) + b'"}\r\n'
+        for frame in (oversized, multibyte):
+            with self.subTest(prefix=frame[:20]):
+                responses = self._stdio_responses(frame + ping)
+                self.assertEqual(len(responses), 2)
+                self.assertIn("error", responses[0])
+                self.assertEqual(responses[1]["id"], 7)
+                self.assertEqual(responses[1]["result"], {})
+        self.assertIn("error", self._stdio_responses(oversized.rstrip(b"\n"))[0])
+
+    def test_stdio_contains_invalid_utf8_nested_json_and_large_integer(self) -> None:
+        ping = b'{"jsonrpc":"2.0","id":8,"method":"ping"}\n'
+        for invalid in (
+            b"\xff\n",
+            b"[" * 10000 + b"]" * 10000 + b"\n",
+            b"1" * 10000 + b"\n",
+        ):
+            with self.subTest(prefix=invalid[:20]):
+                responses = self._stdio_responses(invalid + ping)
+                self.assertIn("error", responses[0])
+                self.assertEqual(responses[1]["id"], 8)
+
+    def test_stdio_exact_wire_limit_and_final_frame_without_newline(self) -> None:
+        ping = b'{"jsonrpc":"2.0","id":9,"method":"ping"}'
+        at_limit = ping + b" " * (1024 * 1024 - len(ping) - 1) + b"\n"
+        responses = self._stdio_responses(at_limit + ping)
+        self.assertEqual([response["id"] for response in responses], [9, 9])
+        self.assertTrue(all(response["result"] == {} for response in responses))
 
     def test_negotiates_and_uses_client_workspace_roots(self) -> None:
         with (
