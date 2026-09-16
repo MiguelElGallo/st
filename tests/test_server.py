@@ -675,13 +675,49 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(vscode_marketplace["metadata"]["version"], expected)
         self.assertEqual(
             vscode_marketplace["plugins"][0]["source"],
-            "./plugins/tgrep",
+            "./plugins/vscode/tgrep",
         )
         self.assertEqual(vscode_marketplace["plugins"][0]["version"], expected)
 
         self.assertFalse(
             (REPOSITORY_ROOT / "plugins/tgrep-vscode/plugin.json").exists()
         )
+
+    def test_vscode_adapter_matches_canonical_source_and_closed_inventory(self) -> None:
+        build_path = REPOSITORY_ROOT / "scripts/build_vscode_plugin.py"
+        spec = importlib.util.spec_from_file_location("vscode_builder", build_path)
+        assert spec and spec.loader
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        expected = builder.expected_files()
+        adapter = REPOSITORY_ROOT / "plugins/vscode/tgrep"
+        for relative, content in expected.items():
+            path = adapter / relative
+            self.assertFalse(path.is_symlink(), relative)
+            self.assertEqual(path.read_bytes(), content, relative)
+        tracked = subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "--",
+                "plugins/vscode/tgrep",
+            ],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.splitlines()
+        self.assertEqual(
+            set(tracked),
+            {f"plugins/vscode/tgrep/{name}" for name in expected},
+        )
+        manifest = json.loads((adapter / "plugin.json").read_text())
+        self.assertNotIn("$schema", manifest)
+        self.assertEqual(manifest["mcpServers"], "./.mcp.json")
+        self.assertEqual(manifest["version"], server.SERVER_VERSION)
 
     def test_documentation_links_and_release_media_exist(self) -> None:
         expected_paths = (

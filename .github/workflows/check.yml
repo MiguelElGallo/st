@@ -16,9 +16,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
-      - run: ruff check plugins tests
-      - run: ruff format --check plugins tests
-      - run: ty check plugins tests
+      - run: ruff check plugins scripts tests
+      - run: ruff format --check plugins scripts tests
+      - run: ty check plugins scripts tests
+      - run: python scripts/build_vscode_plugin.py --check
       - run: python -m unittest tests/test_server.py -v
 
   runtime:

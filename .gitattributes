@@ -1,0 +1,2 @@
+# Keep generated package bytes identical across macOS, Linux, and Windows.
+plugins/** text eol=lf

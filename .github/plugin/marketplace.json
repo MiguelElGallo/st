@@ -13,7 +13,7 @@
       "name": "tgrep",
       "description": "Fast indexed repository search powered by Microsoft tgrep.",
       "version": "0.1.1",
-      "source": "./plugins/tgrep"
+      "source": "./plugins/vscode/tgrep"
     }
   ]
 }
