@@ -99,7 +99,8 @@ class ManagedInstallTests(unittest.TestCase):
 
             self.assertEqual(installed, cached)
             self.assertEqual(installed.read_bytes(), b"binary")
-            self.assertTrue(installed.stat().st_mode & 0o100)
+            if os.name != "nt":
+                self.assertTrue(installed.stat().st_mode & 0o100)
             self.assertEqual(fetch.call_count, 1)
             installed_license = installed.parent / "LICENSE.microsoft-tgrep.txt"
             self.assertIn("Microsoft Corporation", installed_license.read_text())
