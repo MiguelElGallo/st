@@ -206,7 +206,7 @@ class PathAndCommandTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()
         (self.root / "src").mkdir()
         (self.root / "src/main.rs").write_text("fn main() {}\n", encoding="utf-8")
         self.environment = mock.patch.dict(
