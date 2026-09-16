@@ -1,0 +1,18 @@
+1
+00:00:00,000 --> 00:00:02,600
+Add tgrep to Codex with two commands.
+
+2
+00:00:02,600 --> 00:00:08,200
+Register the marketplace, install the plugin,
+then start a new task in your repository.
+
+3
+00:00:08,200 --> 00:00:13,100
+Ask Codex to build the index
+and find the symbol you need.
+
+4
+00:00:13,100 --> 00:00:18,600
+Focused, indexed results can mean less waiting,
+fewer tokens spent on broad context, and more precise answers.

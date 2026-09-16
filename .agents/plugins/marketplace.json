@@ -1,0 +1,20 @@
+{
+  "name": "tgrep",
+  "interface": {
+    "displayName": "tgrep Agent Plugins"
+  },
+  "plugins": [
+    {
+      "name": "tgrep",
+      "source": {
+        "source": "local",
+        "path": "./plugins/tgrep"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

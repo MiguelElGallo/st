@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tgrep",
+  "version": "0.1.0",
+  "description": "Fast indexed repository search powered by Microsoft tgrep.",
+  "author": {
+    "name": "MiguelElGallo",
+    "email": "60221874+MiguelElGallo@users.noreply.github.com",
+    "url": "https://github.com/MiguelElGallo"
+  },
+  "homepage": "https://github.com/MiguelElGallo/st#readme",
+  "repository": "https://github.com/MiguelElGallo/st",
+  "license": "MIT",
+  "keywords": ["tgrep", "search", "code", "index", "developer-tools"]
+}

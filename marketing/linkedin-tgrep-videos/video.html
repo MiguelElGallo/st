@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tgrep Agent Plugin — LinkedIn videos</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --ink: #f7fbff;
+        --muted: #a8b8ca;
+        --panel: #111b29;
+        --line: rgba(255,255,255,.13);
+        --cyan: #57e6d9;
+        --blue: #73a7ff;
+        --violet: #b994ff;
+        --green: #75e69b;
+        --orange: #ffbb6d;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { width: 1080px; height: 1350px; margin: 0; overflow: hidden; }
+      body {
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% 4%, rgba(87,230,217,.18), transparent 27%),
+          radial-gradient(circle at 94% 65%, rgba(185,148,255,.18), transparent 30%),
+          linear-gradient(150deg, #07111d 0%, #0b1422 52%, #131126 100%);
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+        background-size: 52px 52px;
+        mask-image: linear-gradient(to bottom, black, transparent 84%);
+      }
+
+      .topbar {
+        position: absolute;
+        z-index: 50;
+        top: 54px;
+        left: 68px;
+        right: 68px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .brand { display: flex; align-items: center; gap: 15px; font-size: 21px; font-weight: 820; letter-spacing: .04em; }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        border: 4px solid var(--cyan);
+        border-radius: 50%;
+        box-shadow: 0 0 24px rgba(87,230,217,.22);
+      }
+      .mark::before { content: "t"; color: var(--cyan); font: 900 25px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .mark::after {
+        content: "";
+        position: absolute;
+        width: 17px;
+        height: 4px;
+        margin: 35px 0 0 35px;
+        background: var(--cyan);
+        border-radius: 99px;
+        transform: rotate(45deg);
+      }
+      .platform { color: var(--muted); font-size: 17px; font-weight: 720; }
+      .platform strong { color: var(--ink); }
+
+      .scene {
+        position: absolute;
+        z-index: 10;
+        inset: 134px 68px 170px;
+        opacity: 0;
+        transform: translateY(18px) scale(.99);
+        pointer-events: none;
+      }
+      .eyebrow { margin-bottom: 17px; color: var(--cyan); font-size: 17px; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+      h1 { margin: 0; font-size: 65px; line-height: 1.04; letter-spacing: -.045em; }
+      h1 .accent { color: var(--cyan); }
+      .subhead { margin: 22px 0 0; color: var(--muted); font-size: 28px; line-height: 1.38; }
+      .panel {
+        background: linear-gradient(155deg, rgba(23,34,49,.98), rgba(10,17,28,.98));
+        border: 1px solid rgba(255,255,255,.14);
+        box-shadow: 0 32px 90px rgba(0,0,0,.36), inset 0 1px rgba(255,255,255,.04);
+        border-radius: 26px;
+      }
+      [data-enter] { opacity: 0; transform: translateY(22px); }
+
+      .hero { height: 100%; display: grid; align-content: center; text-align: center; }
+      .hero h1 { margin: 0 auto; max-width: 900px; font-size: 78px; }
+      .hero .subhead { font-size: 30px; }
+      .search-line { display: flex; align-items: center; width: 720px; margin: 64px auto 0; padding: 22px 28px; text-align: left; border-radius: 20px; }
+      .search-icon { width: 33px; height: 33px; margin-right: 20px; border: 4px solid var(--cyan); border-radius: 50%; position: relative; }
+      .search-icon::after { content: ""; position: absolute; width: 15px; height: 4px; top: 24px; left: 24px; background: var(--cyan); transform: rotate(45deg); border-radius: 99px; }
+      .search-query { font: 22px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; color: #e8f2ff; }
+      .search-cursor { display: inline-block; width: 3px; height: 27px; margin-left: 5px; vertical-align: -6px; background: var(--cyan); }
+
+      .app-window { margin-top: 38px; height: 720px; overflow: hidden; }
+      .window-bar { height: 58px; display: flex; align-items: center; gap: 10px; padding: 0 22px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.025); }
+      .dot { width: 13px; height: 13px; border-radius: 50%; background: #ff6b72; }
+      .dot:nth-child(2) { background: #ffd166; }
+      .dot:nth-child(3) { background: var(--green); }
+      .window-title { margin-left: 12px; color: var(--muted); font-size: 16px; }
+      .keys { margin-left: auto; display: flex; gap: 7px; }
+      .key { min-width: 38px; padding: 7px 9px; text-align: center; color: #dce8f7; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.17); border-radius: 8px; box-shadow: 0 3px 0 rgba(0,0,0,.3); font-size: 14px; font-weight: 760; }
+      .palette { width: 800px; margin: 45px auto 0; padding: 16px; background: #1a283b; border: 2px solid var(--blue); border-radius: 15px; box-shadow: 0 28px 75px rgba(0,0,0,.5); }
+      .palette-input { padding: 17px 19px; background: #0d1725; border-radius: 10px; font: 21px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .palette-result { display: flex; align-items: center; gap: 14px; margin-top: 11px; padding: 16px 18px; border-radius: 10px; background: rgba(115,167,255,.17); font-size: 21px; }
+      .command-icon { display: grid; place-items: center; width: 33px; height: 33px; color: #08111c; background: var(--blue); border-radius: 9px; font-weight: 900; }
+      .url-card { width: 800px; margin: 25px auto 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.05); }
+      .url-label { color: var(--green); font-size: 14px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+      .url { margin-top: 8px; color: #e5eef9; font: 19px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .ready-row { width: 800px; margin: 17px auto 0; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 18px; }
+      .ready-row strong { color: var(--green); }
+
+      .terminal { margin-top: 42px; height: 680px; overflow: hidden; }
+      .terminal-body { padding: 34px 38px; font: 20px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .terminal-line { min-height: 34px; color: #e4edf8; }
+      .terminal-line + .terminal-line { margin-top: 18px; }
+      .prompt { color: var(--cyan); font-weight: 800; }
+      .command { color: #f4f7fb; }
+      .terminal-status { color: var(--green); }
+      .terminal-muted { color: #7f92a8; }
+      .terminal .cursor { display: inline-block; width: 11px; height: 23px; margin-left: 6px; vertical-align: -4px; background: var(--cyan); }
+      .install-badge { display: inline-flex; align-items: center; gap: 9px; margin-top: 30px; padding: 12px 16px; border: 1px solid rgba(117,230,155,.32); border-radius: 999px; color: var(--green); background: rgba(117,230,155,.08); font: 700 16px/1 ui-sans-serif, sans-serif; }
+
+      .chat-window { margin-top: 39px; height: 705px; display: grid; grid-template-columns: 185px 1fr; overflow: hidden; }
+      .sidebar { padding: 29px 18px; border-right: 1px solid var(--line); color: var(--muted); }
+      .sidebar strong { display: block; margin-bottom: 26px; color: var(--ink); font-size: 18px; }
+      .side-row { margin-bottom: 8px; padding: 12px; border-radius: 10px; font-size: 15px; }
+      .side-row.active { color: #e5effd; background: rgba(115,167,255,.14); }
+      .chat { padding: 31px 32px; }
+      .chat-label { color: var(--muted); font-size: 15px; }
+      .bubble { margin-top: 13px; padding: 24px 25px; border: 1px solid rgba(115,167,255,.28); border-radius: 19px 19px 6px 19px; background: linear-gradient(135deg, rgba(115,167,255,.2), rgba(87,230,217,.1)); }
+      .bubble p { margin: 0; font-size: 21px; line-height: 1.48; }
+      .tool-stream { margin-top: 22px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: rgba(0,0,0,.16); }
+      .tool-row { display: grid; grid-template-columns: 33px 165px 1fr; align-items: center; gap: 12px; min-height: 45px; color: var(--muted); font: 15px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .tool-row + .tool-row { border-top: 1px solid rgba(255,255,255,.07); }
+      .tool-icon { display: grid; place-items: center; width: 25px; height: 25px; color: #08111c; background: var(--green); border-radius: 50%; font: 900 14px/1 ui-sans-serif, sans-serif; }
+      .tool-name { color: var(--cyan); font-weight: 800; }
+      .answer { margin-top: 19px; color: #e5eef9; font-size: 18px; line-height: 1.42; }
+      .answer strong { color: var(--green); }
+
+      .benefits { height: 100%; display: grid; align-content: center; }
+      .benefits h1 { max-width: 850px; }
+      .benefit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px; margin-top: 55px; }
+      .benefit-card { min-height: 255px; padding: 26px 22px; border: 1px solid var(--line); border-radius: 23px; background: rgba(255,255,255,.045); }
+      .benefit-icon { display: grid; place-items: center; width: 53px; height: 53px; border-radius: 16px; color: #06111d; background: var(--cyan); font-size: 25px; font-weight: 900; }
+      .benefit-card:nth-child(2) .benefit-icon { background: var(--violet); }
+      .benefit-card:nth-child(3) .benefit-icon { background: var(--orange); }
+      .benefit-card h2 { margin: 24px 0 10px; font-size: 28px; line-height: 1.08; }
+      .benefit-card p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.42; }
+      .claim-note { margin-top: 27px; color: #7f91a6; font-size: 15px; text-align: center; }
+
+      .final { height: 100%; display: grid; align-content: center; text-align: center; }
+      .final h1 { margin: 0 auto; max-width: 900px; font-size: 72px; }
+      .final .subhead { margin-left: auto; margin-right: auto; max-width: 820px; }
+      .cta { display: inline-block; margin: 52px auto 0; padding: 18px 27px; border-radius: 999px; color: #06111d; background: linear-gradient(90deg, var(--cyan), var(--green)); font-size: 20px; font-weight: 860; }
+      .repo { margin-top: 26px; color: #d8e3f0; font: 21px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .tiny { margin-top: 26px; color: #7f91a6; font-size: 15px; }
+
+      .footer { position: absolute; z-index: 60; left: 68px; right: 68px; bottom: 57px; }
+      .footer-row { display: flex; justify-content: space-between; margin-bottom: 14px; color: #708196; font-size: 13px; font-weight: 820; letter-spacing: .1em; text-transform: uppercase; }
+      .footer-row span.active { color: #e9f2fc; }
+      .progress-track { height: 5px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.1); }
+      .progress { width: 0; height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan), var(--violet)); border-radius: inherit; }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span><span>tgrep agent plugin</span></div>
+      <div class="platform"><strong id="platform-name">VS Code</strong> · 24 sec</div>
+    </header>
+
+    <main>
+      <section class="scene hero" data-start="0" data-end="3">
+        <div class="eyebrow" data-enter="0.02">Search the repository, not the whole haystack</div>
+        <h1 data-enter="0.08">Give your agent a <span class="accent">faster path</span> through code.</h1>
+        <p class="subhead" data-enter="0.2">Microsoft tgrep, packaged for <span class="platform-copy">VS Code</span>.</p>
+        <div class="search-line panel" data-enter="0.34">
+          <span class="search-icon"></span>
+          <span class="search-query">where is main defined?<span class="search-cursor"></span></span>
+        </div>
+      </section>
+
+      <section class="scene vscode-only" data-start="3" data-end="9">
+        <div class="eyebrow" data-enter="0.02">Install · one source URL</div>
+        <h1 data-enter="0.05">Open the palette. <span class="accent">Paste. Done.</span></h1>
+        <div class="app-window panel" data-enter="0.11">
+          <div class="window-bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="window-title">Visual Studio Code · Command Palette</span>
+            <div class="keys"><span class="key">⇧</span><span class="key">⌘</span><span class="key">P</span><span class="key">Ctrl+Shift+P</span></div>
+          </div>
+          <div class="palette" data-enter="0.22">
+            <div class="palette-input">Chat: Install Plugin From Source</div>
+            <div class="palette-result"><span class="command-icon">›</span><strong>Chat: Install Plugin From Source</strong></div>
+          </div>
+          <div class="url-card" data-enter="0.46">
+            <div class="url-label">Repository URL</div>
+            <div class="url">https://github.com/MiguelElGallo/st</div>
+          </div>
+          <div class="ready-row" data-enter="0.68"><span>Select <strong>tgrep</strong> if prompted</span><span><strong>✓ Ready for a new chat</strong></span></div>
+        </div>
+      </section>
+
+      <section class="scene codex-only" data-start="3" data-end="9">
+        <div class="eyebrow" data-enter="0.02">Install · two commands</div>
+        <h1 data-enter="0.05">Add the marketplace. <span class="accent">Install tgrep.</span></h1>
+        <div class="terminal panel" data-enter="0.11">
+          <div class="window-bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="window-title">Terminal · Codex CLI</span>
+          </div>
+          <div class="terminal-body">
+            <div class="terminal-line" data-enter="0.2"><span class="prompt">$</span> <span class="command">codex plugin marketplace add MiguelElGallo/st</span></div>
+            <div class="terminal-line terminal-status" data-enter="0.39">✓ Marketplace “tgrep” added</div>
+            <div class="terminal-line" data-enter="0.52"><span class="prompt">$</span> <span class="command">codex plugin add tgrep@tgrep</span></div>
+            <div class="terminal-line terminal-status" data-enter="0.7">✓ Installed tgrep 0.1.0</div>
+            <div class="install-badge" data-enter="0.78"><span>✓</span><span>Start a new Codex task in your repository</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene" data-start="9" data-end="14.5">
+        <div class="eyebrow" data-enter="0.02">Use · natural language</div>
+        <h1 data-enter="0.05">Index once. <span class="accent">Search precisely.</span></h1>
+        <div class="chat-window panel" data-enter="0.11">
+          <aside class="sidebar"><strong id="chat-brand">CHAT</strong><div class="side-row active">Agent mode</div><div class="side-row">Tools</div><div class="side-row">Context</div></aside>
+          <div class="chat">
+            <div class="chat-label">You</div>
+            <div class="bubble" data-enter="0.19"><p>Build a tgrep index for this repository, then find where <code>main</code> is defined.</p></div>
+            <div class="tool-stream" data-enter="0.38">
+              <div class="tool-row"><span class="tool-icon">✓</span><span class="tool-name">tgrep_index</span><span>repository indexed</span></div>
+              <div class="tool-row"><span class="tool-icon">✓</span><span class="tool-name">tgrep_search</span><span>query: “main” · fixed string</span></div>
+            </div>
+            <div class="answer" data-enter="0.68"><strong>3 focused matches</strong> with file paths and line context—ready for the next step.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene benefits" data-start="14.5" data-end="20">
+        <div class="eyebrow" data-enter="0.02">Why indexed search matters</div>
+        <h1 data-enter="0.05">Less searching. <span class="accent">More useful work.</span></h1>
+        <div class="benefit-grid" data-enter="0.16">
+          <div class="benefit-card"><div class="benefit-icon">↯</div><h2>Less waiting</h2><p>Reuse an index instead of repeatedly walking the whole repository.</p></div>
+          <div class="benefit-card"><div class="benefit-icon">≪</div><h2>Fewer tokens</h2><p>Send focused matches instead of broad, noisy file context.</p></div>
+          <div class="benefit-card"><div class="benefit-icon">◎</div><h2>More precision</h2><p>Use literal, regex, type, and glob filters to narrow the answer.</p></div>
+        </div>
+        <div class="claim-note" data-enter="0.55">Benefits vary by repository, query, and agent workflow.</div>
+      </section>
+
+      <section class="scene final" data-start="20" data-end="24">
+        <div class="eyebrow" data-enter="0.02">Open source · community maintained</div>
+        <h1 data-enter="0.06">Make repository exploration <span class="accent">feel lighter.</span></h1>
+        <p class="subhead" data-enter="0.18">Install tgrep for <span class="platform-copy">VS Code</span> and give your agent focused code search.</p>
+        <div class="cta" data-enter="0.34">Try the tgrep Agent Plugin</div>
+        <div class="repo" data-enter="0.47">github.com/MiguelElGallo/st</div>
+        <div class="tiny" data-enter="0.6">Powered by Microsoft tgrep · not affiliated with or endorsed by Microsoft</div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-row"><span data-step="0">Discover</span><span data-step="1">Install</span><span data-step="2">Search</span><span data-step="3">Benefits</span><span data-step="4">Try it</span></div>
+      <div class="progress-track"><div class="progress"></div></div>
+    </footer>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const video = params.get("video") === "codex" ? "codex" : "vscode";
+      const duration = 24;
+      const platform = video === "codex" ? "Codex" : "VS Code";
+      document.getElementById("platform-name").textContent = platform;
+      document.getElementById("chat-brand").textContent = video === "codex" ? "CODEX" : "CHAT";
+      document.querySelectorAll(".platform-copy").forEach((node) => { node.textContent = platform; });
+      document.querySelectorAll(video === "codex" ? ".vscode-only" : ".codex-only").forEach((node) => { node.remove(); });
+
+      const clamp = (value, low = 0, high = 1) => Math.min(high, Math.max(low, value));
+      const smooth = (value) => {
+        const x = clamp(value);
+        return x * x * (3 - 2 * x);
+      };
+      const scenes = [...document.querySelectorAll(".scene")];
+      const steps = [...document.querySelectorAll("[data-step]")];
+      const ranges = [[0, 3], [3, 9], [9, 14.5], [14.5, 20], [20, 24]];
+
+      window.renderVideoAt = (milliseconds) => {
+        const time = milliseconds / 1000;
+        document.querySelector(".progress").style.width = `${clamp(time / duration) * 100}%`;
+        document.querySelectorAll(".search-cursor, .terminal .cursor").forEach((node) => {
+          node.style.opacity = Math.floor(time * 2.2) % 2 ? "0.25" : "1";
+        });
+
+        scenes.forEach((scene) => {
+          const start = Number(scene.dataset.start);
+          const end = Number(scene.dataset.end);
+          const fadeIn = smooth((time - start) / 0.42);
+          const fadeOut = smooth((end - time) / 0.42);
+          const visibility = Math.min(fadeIn, fadeOut);
+          scene.style.opacity = String(visibility);
+          scene.style.transform = `translateY(${(1 - fadeIn) * 18 - (1 - fadeOut) * 10}px) scale(${0.99 + visibility * 0.01})`;
+          scene.querySelectorAll("[data-enter]").forEach((node) => {
+            const delay = Number(node.dataset.enter);
+            const local = clamp((time - start) / Math.max(0.01, end - start));
+            const progress = smooth((local - delay) / 0.13);
+            node.style.opacity = String(progress);
+            node.style.transform = `translateY(${(1 - progress) * 22}px)`;
+          });
+        });
+
+        let activeIndex = ranges.findIndex(([start, end]) => time >= start && time < end);
+        if (activeIndex < 0) activeIndex = ranges.length - 1;
+        steps.forEach((step, index) => step.classList.toggle("active", index === activeIndex));
+      };
+
+      window.renderVideoAt(0);
+    </script>
+  </body>
+</html>

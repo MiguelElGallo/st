@@ -1,0 +1,18 @@
+1
+00:00:00,000 --> 00:00:02,400
+Install tgrep in VS Code in a few simple steps.
+
+2
+00:00:02,400 --> 00:00:09,200
+Open the Command Palette, choose “Chat: Install Plugin From Source,”
+and paste the repository URL.
+
+3
+00:00:09,200 --> 00:00:15,400
+Start a new chat, build the index once,
+then search with focused results.
+
+4
+00:00:15,400 --> 00:00:21,400
+That can mean less waiting, fewer tokens spent on broad context,
+and more precise repository exploration.

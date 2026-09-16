@@ -1,0 +1,30 @@
+{
+  "name": "tgrep",
+  "version": "0.1.0",
+  "description": "Fast indexed repository search powered by Microsoft tgrep.",
+  "author": {
+    "name": "MiguelElGallo",
+    "email": "60221874+MiguelElGallo@users.noreply.github.com",
+    "url": "https://github.com/MiguelElGallo"
+  },
+  "homepage": "https://github.com/MiguelElGallo/st#readme",
+  "repository": "https://github.com/MiguelElGallo/st",
+  "license": "MIT",
+  "keywords": ["tgrep", "search", "code", "index", "developer-tools"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "tgrep",
+    "shortDescription": "Fast indexed repository search",
+    "longDescription": "Search large repositories with a verified, managed Microsoft tgrep binary and agent-friendly tools.",
+    "developerName": "MiguelElGallo",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/MiguelElGallo/st",
+    "defaultPrompt": [
+      "Index this repository, then find where main is defined.",
+      "Use tgrep to find every TODO in this repository.",
+      "Find references to this symbol with tgrep."
+    ]
+  }
+}

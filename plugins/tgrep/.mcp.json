@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tgrep": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["${PLUGIN_ROOT}/mcp_server/server.py"]
+    }
+  }
+}

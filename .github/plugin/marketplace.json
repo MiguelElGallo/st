@@ -1,0 +1,19 @@
+{
+  "name": "tgrep",
+  "owner": {
+    "name": "MiguelElGallo",
+    "email": "60221874+MiguelElGallo@users.noreply.github.com"
+  },
+  "metadata": {
+    "description": "Install fast indexed repository search powered by Microsoft tgrep.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "tgrep",
+      "description": "Fast indexed repository search powered by Microsoft tgrep.",
+      "version": "0.1.0",
+      "source": "./plugins/tgrep"
+    }
+  ]
+}
